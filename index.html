@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SolarSim Pro: LiFePO4 & Off-Grid Designer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'DM Sans', sans-serif; }
+        code, .mono { font-family: 'Space Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .value-transition { transition: all 0.3s ease; }
+        #ecgCanvas { width: 100% !important; height: 260px !important; }
+        .card-glow { transition: box-shadow 0.3s ease; }
+        .card-glow:hover { box-shadow: 0 10px 30px -5px rgba(99, 102, 241, 0.15); }
+        .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px -4px rgba(0,0,0,0.12); }
+        input[type=range] { -webkit-appearance: none; appearance: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #6366f1; cursor: pointer; }
+        input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
+        .pill-badge { font-family: 'Space Mono', monospace; font-size: 10px; }
+        .section-divider { border-top: 1px solid #e2e8f0; }
+        .appliance-row { transition: background 0.15s ease; }
+        .appliance-row:hover { background: #f8fafc; }
+        .soc-bar { transition: width 0.5s ease, background-color 0.5s ease; }
+        @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+        .live-dot { animation: pulse-dot 1.2s infinite; }
+        .config-card { border-left: 4px solid; transition: transform 0.2s; }
+        .config-card:hover { transform: translateX(4px); }
+        .formula-block { font-family: 'Space Mono', monospace; font-size: 11px; line-height: 1.7; }
+        .highlight-box { position: relative; overflow: hidden; }
+        .highlight-box::before { content:''; position:absolute; top:0;left:0;right:0;height:3px; }
+        .highlight-box.indigo::before { background: linear-gradient(90deg, #6366f1, #818cf8); }
+        .highlight-box.emerald::before { background: linear-gradient(90deg, #10b981, #34d399); }
+        .highlight-box.amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .highlight-box.rose::before { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+    <!-- Header -->
+    <nav class="bg-slate-900 text-white shadow-xl sticky top-0 z-50 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-indigo-600 p-2 rounded-lg">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div>
+                        <span class="font-bold text-lg tracking-tight">SolarSim <span class="text-indigo-400">Pro</span></span>
+                        <span class="ml-3 text-[10px] pill-badge bg-indigo-900 text-indigo-300 px-2 py-0.5 rounded-full">LiFePO4 Edition</span>
+                    </div>
+                </div>
+                <div class="hidden md:flex space-x-6 text-sm font-medium text-slate-400">
+                    <a href="#load-builder" class="hover:text-indigo-400 transition">Load Builder</a>
+                    <a href="#calculator" class="hover:text-indigo-400 transition">System Design</a>
+                    <a href="#charge-calc" class="hover:text-indigo-400 transition">C/D Time</a>
+                    <a href="#simulation" class="hover:text-indigo-400 transition">Live Sim</a>
+                    <a href="#configs" class="hover:text-indigo-400 transition">Configs</a>
+                    <a href="#guide" class="hover:text-indigo-400 transition">Guide</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-14">
+
+        <!-- ═══════════ SECTION 0: LOAD BUILDER ═══════════ -->
+        <section id="load-builder" class="space-y-6">
+            <div class="max-w-2xl">
+                <span class="pill-badge bg-slate-800 text-slate-300 px-3 py-1 rounded-full inline-block mb-3">STEP 1</span>
+                <h2 class="text-3xl font-extrabold text-slate-900">Daily Load Assessment</h2>
+                <p class="text-slate-500 mt-2">List every appliance and its daily runtime. This daily Wh total feeds all downstream calculations automatically.</p>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 card-glow overflow-hidden">
+                <div class="bg-slate-800 px-8 py-5 flex justify-between items-center">
+                    <h3 class="text-base font-bold text-white flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        Appliance Load Builder
+                    </h3>
+                    <button onclick="addAppliance()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center">
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Add Appliance
+                    </button>
+                </div>
+
+                <!-- Table Header -->
+                <div class="px-6 pt-4 pb-2 grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <div class="col-span-4">Appliance</div>
+                    <div class="col-span-2 text-center">Watts (W)</div>
+                    <div class="col-span-2 text-center">Hours/Day</div>
+                    <div class="col-span-2 text-center">Qty</div>
+                    <div class="col-span-2 text-right">Wh/Day</div>
+                </div>
+                <div class="section-divider mx-6"></div>
+
+                <div id="applianceTable" class="divide-y divide-slate-100">
+                    <!-- Rows injected by JS -->
+                </div>
+
+                <!-- Totals -->
+                <div class="section-divider mx-6 mt-2"></div>
+                <div class="px-6 py-5 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center space-x-8">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Total Daily Load</p>
+                            <p class="text-3xl font-black text-slate-900 mono" id="totalDailyWh">5,050 Wh</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">= kWh</p>
+                            <p class="text-2xl font-black text-indigo-700 mono" id="totalDailyKwh">5.05 kWh</p>
+                        </div>
+                    </div>
+                    <button onclick="syncLoadToCalculator()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold px-6 py-3 rounded-xl transition flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Sync to System Designer →
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════ SECTION 1: SYSTEM DESIGNER ═══════════ -->
+        <section id="calculator" class="space-y-6">
+            <div class="max-w-2xl">
+                <span class="pill-badge bg-slate-800 text-slate-300 px-3 py-1 rounded-full inline-block mb-3">STEP 2 & 3</span>
+                <h2 class="text-3xl font-extrabold text-slate-900">System Architect</h2>
+                <p class="text-slate-500 mt-2">Configure your LiFePO4 battery bank and solar array. Indian standard peak sun hours: 4–5h (default 4.5h).</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- Battery Config -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 card-glow overflow-hidden highlight-box indigo">
+                    <div class="bg-indigo-600 px-8 py-5">
+                        <h3 class="text-base font-bold text-white flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                            Battery Bank Configuration (LiFePO4)
+                        </h3>
+                    </div>
+                    <div class="p-8 space-y-5">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nominal Cell Volts</label>
+                                <input type="number" id="cellVolts" value="3.2" step="0.1" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm font-semibold" oninput="calculate()">
+                                <p class="text-[10px] text-slate-400">LiFePO4 standard: 3.2V</p>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Cell Capacity (Ah)</label>
+                                <input type="number" id="cellAh" value="100" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm font-semibold" oninput="calculate()">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Cells in Series (S)</label>
+                                <input type="number" id="cellsSeries" value="16" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm font-semibold" oninput="calculate()">
+                                <p class="text-[10px] text-slate-400">↑ Voltage: S × 3.2V</p>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Cells in Parallel (P)</label>
+                                <input type="number" id="cellsParallel" value="1" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm font-semibold" oninput="calculate()">
+                                <p class="text-[10px] text-slate-400">↑ Capacity: P × Ah</p>
+                            </div>
+                        </div>
+
+                        <!-- System Stats Grid -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 stat-card">
+                                <p class="text-[10px] font-bold text-indigo-600 uppercase">System Voltage</p>
+                                <p class="text-2xl font-black text-indigo-900 mono" id="outSysVolts">51.2V</p>
+                                <p class="text-[10px] text-indigo-400 mt-1">S × Cell Volts</p>
+                            </div>
+                            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 stat-card">
+                                <p class="text-[10px] font-bold text-indigo-600 uppercase">Total Capacity</p>
+                                <p class="text-2xl font-black text-indigo-900 mono" id="outSysAh">100 Ah</p>
+                                <p class="text-[10px] text-indigo-400 mt-1">P × Cell Ah</p>
+                            </div>
+                            <div class="bg-indigo-600 rounded-2xl p-4 stat-card">
+                                <p class="text-[10px] font-bold text-indigo-200 uppercase">Total Energy</p>
+                                <p class="text-2xl font-black text-white mono" id="outSysKwh">5.12 kWh</p>
+                                <p class="text-[10px] text-indigo-300 mt-1" id="outSysWh">5,120 Wh</p>
+                            </div>
+                            <div class="bg-slate-800 rounded-2xl p-4 stat-card">
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">Total Cells</p>
+                                <p class="text-2xl font-black text-white mono" id="outTotalCells">16</p>
+                                <p class="text-[10px] text-slate-400 mt-1">S × P cells</p>
+                            </div>
+                        </div>
+
+                        <!-- Usable Energy at DoD -->
+                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                            <div class="flex justify-between items-center">
+                                <p class="text-[11px] font-bold text-slate-500 uppercase">Usable Energy @ <span id="outDodLabel">80</span>% DoD</p>
+                                <p class="text-sm font-black text-slate-700 mono" id="outUsableKwh">4.10 kWh</p>
+                            </div>
+                            <div class="mt-2 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                <div id="usableBar" class="soc-bar h-full bg-indigo-500 rounded-full" style="width:80%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Solar & Autonomy -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 card-glow overflow-hidden highlight-box emerald">
+                    <div class="bg-emerald-600 px-8 py-5">
+                        <h3 class="text-base font-bold text-white flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            Solar Array & Autonomy Sizing
+                        </h3>
+                    </div>
+                    <div class="p-8 space-y-5">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1 col-span-2">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Daily Consumption (Wh)</label>
+                                <input type="number" id="dailyWh" value="5050" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition text-sm font-semibold" oninput="calculate()">
+                                <p class="text-[10px] text-slate-400">From Load Builder above, or enter manually</p>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Days of Autonomy</label>
+                                <input type="number" id="autonomy" value="2" step="0.5" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition text-sm font-semibold" oninput="calculate()">
+                                <p class="text-[10px] text-slate-400">Typically 2–3 days in India</p>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Target DoD (%)</label>
+                                <input type="number" id="dod" value="80" min="10" max="100" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition text-sm font-semibold" oninput="calculate()">
+                                <p class="text-[10px] text-slate-400">≤80% → 4,000+ cycles</p>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Peak Sun Hours</label>
+                                <input type="number" id="sunHours" value="4.5" step="0.5" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition text-sm font-semibold" oninput="calculate()">
+                                <p class="text-[10px] text-slate-400">India average: 4–5 hrs/day</p>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">System Efficiency (%)</label>
+                                <input type="number" id="sysEff" value="85" min="50" max="100" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition text-sm font-semibold" oninput="calculate()">
+                                <p class="text-[10px] text-slate-400">Inverter + wiring losses ~85%</p>
+                            </div>
+                        </div>
+
+                        <!-- Results -->
+                        <div class="grid grid-cols-1 gap-3">
+                            <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200 stat-card flex justify-between items-center">
+                                <div>
+                                    <p class="text-[10px] font-bold text-amber-700 uppercase">Minimum Solar Array</p>
+                                    <p class="text-2xl font-black text-amber-900 mono" id="reqSolar">1,122 W</p>
+                                    <p class="text-[10px] text-amber-600 mt-1">= Daily Wh ÷ (PSH × Efficiency)</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-bold text-amber-600 uppercase">Example Panels</p>
+                                    <p class="text-sm font-bold text-amber-800 mono" id="panelCount">—</p>
+                                </div>
+                            </div>
+                            <div class="bg-rose-50 p-4 rounded-2xl border border-rose-200 stat-card flex justify-between items-center">
+                                <div>
+                                    <p class="text-[10px] font-bold text-rose-700 uppercase">Required Battery Capacity</p>
+                                    <p class="text-2xl font-black text-rose-900 mono" id="reqBattery">526 Ah</p>
+                                    <p class="text-[10px] text-rose-600 mt-1">= (Daily Wh × Days) ÷ (Vsys × DoD)</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-bold text-rose-600 uppercase">In kWh</p>
+                                    <p class="text-sm font-bold text-rose-800 mono" id="reqBatteryKwh">—</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- MPPT Sizing Hint -->
+                        <div class="bg-slate-800 rounded-xl p-4 text-white">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Recommended MPPT Inverter Size</p>
+                            <p class="text-lg font-black mono" id="mpptHint">—</p>
+                            <p class="text-[10px] text-slate-400 mt-1">Handle peak load; match battery voltage (24V/48V/72V/96V)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════ SECTION 2: CHARGE / DISCHARGE TIME CALCULATOR ═══════════ -->
+        <section id="charge-calc" class="space-y-6">
+            <div class="max-w-2xl">
+                <span class="pill-badge bg-slate-800 text-slate-300 px-3 py-1 rounded-full inline-block mb-3">STEP 4</span>
+                <h2 class="text-3xl font-extrabold text-slate-900">Charge / Discharge Time Calculator</h2>
+                <p class="text-slate-500 mt-2">Enter a load to calculate exactly how long your configured battery bank will last, and how long solar will take to recharge it. Mirrors the MicroPowerGrids calculator.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Discharge Time -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 card-glow overflow-hidden highlight-box rose">
+                    <div class="bg-rose-600 px-8 py-5">
+                        <h3 class="text-base font-bold text-white">🔋 Discharge Time</h3>
+                    </div>
+                    <div class="p-8 space-y-5">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Load in Watts (W)</label>
+                                <input type="number" id="disLoadW" value="800" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none transition text-sm font-semibold" oninput="calcDischarge()">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Or Load in Amps (A)</label>
+                                <input type="number" id="disLoadA" value="" placeholder="auto" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none transition text-sm font-semibold" oninput="calcDischargeFromAmps()">
+                            </div>
+                        </div>
+
+                        <!-- C-Rating display -->
+                        <div class="bg-rose-50 rounded-xl p-4 border border-rose-100">
+                            <div class="flex justify-between mb-3">
+                                <div>
+                                    <p class="text-[10px] font-bold text-rose-700 uppercase">Battery "C" Rating</p>
+                                    <p class="text-2xl font-black text-rose-900 mono" id="cRating">—</p>
+                                    <p class="text-[10px] text-rose-500 mt-1">Load(A) ÷ Capacity(Ah). Keep &lt; 1C for longevity.</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-bold text-rose-700 uppercase">Draw Current</p>
+                                    <p class="text-xl font-black text-rose-900 mono" id="drawAmps">—</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-800 p-4 rounded-2xl text-center">
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">Run Time (100% DoD)</p>
+                                <p class="text-2xl font-black text-white mono" id="disTime100">—</p>
+                                <p class="text-[10px] text-slate-500 mt-1">Hours : Minutes</p>
+                            </div>
+                            <div class="bg-indigo-700 p-4 rounded-2xl text-center">
+                                <p class="text-[10px] font-bold text-indigo-300 uppercase">Run Time @ DoD</p>
+                                <p class="text-2xl font-black text-white mono" id="disTimeDod">—</p>
+                                <p class="text-[10px] text-indigo-300 mt-1" id="disTimeDodLabel">@ 80% DoD</p>
+                            </div>
+                        </div>
+
+                        <div class="formula-block bg-slate-50 rounded-xl p-4 text-slate-600 border border-slate-200">
+                            <p class="font-bold text-slate-700 mb-1">Discharge Formula:</p>
+                            Time (h) = Capacity (Ah) × DoD ÷ Load (A)<br>
+                            Time (h) = Energy (Wh) × DoD ÷ Load (W)<br>
+                            <span class="text-slate-400 text-[10px]">Capacity(Ah) ÷ Current(A) = Hours at 100% DoD</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charge Time -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 card-glow overflow-hidden highlight-box amber">
+                    <div class="bg-amber-500 px-8 py-5">
+                        <h3 class="text-base font-bold text-white">☀️ Solar Charge Time</h3>
+                    </div>
+                    <div class="p-8 space-y-5">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Solar Array Power (W)</label>
+                                <input type="number" id="chargeSolarW" value="1200" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition text-sm font-semibold" oninput="calcCharge()">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Charge Efficiency (%)</label>
+                                <input type="number" id="chargeEff" value="85" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition text-sm font-semibold" oninput="calcCharge()">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-amber-50 p-4 rounded-2xl border border-amber-100 text-center">
+                                <p class="text-[10px] font-bold text-amber-700 uppercase">Charge Current</p>
+                                <p class="text-2xl font-black text-amber-900 mono" id="chargeAmps">—</p>
+                            </div>
+                            <div class="bg-amber-50 p-4 rounded-2xl border border-amber-100 text-center">
+                                <p class="text-[10px] font-bold text-amber-700 uppercase">Charge C-Rate</p>
+                                <p class="text-2xl font-black text-amber-900 mono" id="chargeCRate">—</p>
+                                <p class="text-[10px] text-amber-500 mt-1">Ideal: 0.5C max</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-800 p-4 rounded-2xl text-center">
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">Full Charge Time</p>
+                                <p class="text-2xl font-black text-white mono" id="chargeTime100">—</p>
+                                <p class="text-[10px] text-slate-500 mt-1">0 → 100%</p>
+                            </div>
+                            <div class="bg-emerald-700 p-4 rounded-2xl text-center">
+                                <p class="text-[10px] font-bold text-emerald-300 uppercase">Charge from DoD</p>
+                                <p class="text-2xl font-black text-white mono" id="chargeTimeDod">—</p>
+                                <p class="text-[10px] text-emerald-300 mt-1" id="chargeTimeDodLabel">From 80% DoD</p>
+                            </div>
+                        </div>
+
+                        <div class="formula-block bg-slate-50 rounded-xl p-4 text-slate-600 border border-slate-200">
+                            <p class="font-bold text-slate-700 mb-1">Charge Formula:</p>
+                            Charge(A) = Solar(W) × Eff ÷ Battery Voltage(V)<br>
+                            Time(h) = Capacity(Ah) ÷ Charge Current(A)<br>
+                            <span class="text-slate-400 text-[10px]">e.g. 2000Ah × 48V ÷ 1000W = 12h (with 20% loss)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════ SECTION 3: LIVE SIMULATION ═══════════ -->
+        <section id="simulation" class="bg-slate-900 rounded-[3rem] p-8 md:p-12 text-white overflow-hidden shadow-2xl">
+            <div class="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <div class="space-y-5">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-3">
+                            <span class="w-2 h-2 rounded-full bg-red-500 live-dot"></span>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Live Engine</span>
+                        </div>
+                        <h2 class="text-2xl font-bold">Dynamic Stress Test</h2>
+                        <p class="text-slate-400 mt-2 text-sm">Adjust load to see voltage and SOC respond in real-time.</p>
+                    </div>
+
+                    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-4">
+                        <div>
+                            <div class="flex justify-between text-xs font-bold text-slate-400 mb-2 uppercase">
+                                <span>Simulated Load</span>
+                                <span id="loadVal" class="text-white mono">800W</span>
+                            </div>
+                            <input type="range" id="simLoad" min="0" max="10000" step="100" value="800"
+                                class="w-full h-2 bg-slate-700 rounded-lg cursor-pointer accent-indigo-500"
+                                oninput="updateSim()">
+                        </div>
+
+                        <!-- SOC Bar -->
+                        <div>
+                            <div class="flex justify-between text-[10px] text-slate-500 uppercase mb-1">
+                                <span>State of Charge</span>
+                                <span id="simSocPct">100.0%</span>
+                            </div>
+                            <div class="h-3 bg-slate-700 rounded-full overflow-hidden">
+                                <div id="simSocBar" class="soc-bar h-full rounded-full bg-emerald-500" style="width:100%"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 pt-2">
+                            <div>
+                                <p class="text-[10px] text-slate-500 uppercase font-bold">SOC</p>
+                                <p class="text-xl font-bold mono" id="simSoc">100.0%</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-500 uppercase font-bold">Time Left</p>
+                                <p class="text-xl font-bold text-indigo-400 mono" id="simTime">6.4h</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-500 uppercase font-bold">Energy Left</p>
+                                <p class="text-sm font-bold text-slate-300 mono" id="simEnergyLeft">5,120 Wh</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-500 uppercase font-bold">C-Rate</p>
+                                <p class="text-sm font-bold text-amber-400 mono" id="simCRate">0.16C</p>
+                            </div>
+                        </div>
+
+                        <button onclick="resetSim()" class="w-full mt-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold py-2 rounded-xl transition">
+                            ↺ Reset to 100% SOC
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 bg-slate-800/50 rounded-3xl p-6 border border-slate-700/50">
+                    <div class="flex justify-between items-center mb-4">
+                        <h4 class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Voltage Stability Monitor (ECG Mode)</h4>
+                        <div class="flex space-x-4">
+                            <div class="flex items-center"><div class="w-2 h-2 rounded-full bg-indigo-500 mr-1.5"></div><span class="text-[10px] text-slate-400">SOC %</span></div>
+                            <div class="flex items-center"><div class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></div><span class="text-[10px] text-slate-400">Load W</span></div>
+                        </div>
+                    </div>
+                    <canvas id="ecgCanvas"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════ SECTION 4: TYPICAL HOME CONFIGURATIONS ═══════════ -->
+        <section id="configs" class="space-y-6">
+            <div class="max-w-2xl">
+                <span class="pill-badge bg-slate-800 text-slate-300 px-3 py-1 rounded-full inline-block mb-3">REFERENCE</span>
+                <h2 class="text-3xl font-extrabold text-slate-900">Typical Indian Home Configurations</h2>
+                <p class="text-slate-500 mt-2">Pre-sized MPPT Solar Hybrid systems for 3 kW, 5 kW, and 10 kW homes. Values are indicative — use the designer above for exact sizing.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- 3kW -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden config-card border-l-emerald-500">
+                    <div class="bg-emerald-50 px-6 py-4">
+                        <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">Best for 2–3 BHK</span>
+                        <h3 class="text-xl font-extrabold text-slate-900 mt-2">3 kW Home</h3>
+                        <p class="text-sm text-slate-500">MPPT Solar System</p>
+                    </div>
+                    <div class="p-6 space-y-3 text-sm">
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">House Load</span>
+                            <span class="font-bold">~3 kW connected</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">MPPT Inverter</span>
+                            <span class="font-bold text-emerald-700">3–4 kVA (24V/48V)</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Battery (LiFePO₄)</span>
+                            <span class="font-bold">48V 100Ah = 4.8 kWh</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Backup @ 80% DoD</span>
+                            <span class="font-bold">2–3 hours</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Solar Panels</span>
+                            <span class="font-bold">~3 kW array</span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="text-slate-500">Example Array</span>
+                            <span class="font-bold text-slate-700">440W × 7 panels</span>
+                        </div>
+                        <div class="bg-emerald-50 rounded-xl p-3 text-xs text-emerald-700 mt-2">
+                            💡 2–3 BHK: Lights, fans, TV, fridge, small pump
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5kW -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden config-card border-l-indigo-500">
+                    <div class="bg-indigo-50 px-6 py-4">
+                        <span class="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-1 rounded-full">Ideal 3–4 BHK</span>
+                        <h3 class="text-xl font-extrabold text-slate-900 mt-2">5 kW Home</h3>
+                        <p class="text-sm text-slate-500">MPPT Hybrid System</p>
+                    </div>
+                    <div class="p-6 space-y-3 text-sm">
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">House Load</span>
+                            <span class="font-bold">~5 kW connected</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">MPPT Inverter</span>
+                            <span class="font-bold text-indigo-700">5 kVA (48V/72V)</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Battery (LiFePO₄)</span>
+                            <span class="font-bold">72V 100–150Ah</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Energy</span>
+                            <span class="font-bold">7.2–10.8 kWh</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Solar Panels</span>
+                            <span class="font-bold">~5 kW array</span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="text-slate-500">Example Array</span>
+                            <span class="font-bold text-slate-700">440W × 12 panels</span>
+                        </div>
+                        <div class="bg-indigo-50 rounded-xl p-3 text-xs text-indigo-700 mt-2">
+                            💡 3–4 BHK: mixer, washing machine, 1 ton AC, pump
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 10kW -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden config-card border-l-amber-500">
+                    <div class="bg-amber-50 px-6 py-4">
+                        <span class="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Larger Homes / Villas</span>
+                        <h3 class="text-xl font-extrabold text-slate-900 mt-2">10 kW Home</h3>
+                        <p class="text-sm text-slate-500">Premium MPPT System</p>
+                    </div>
+                    <div class="p-6 space-y-3 text-sm">
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">House Load</span>
+                            <span class="font-bold">~10 kW connected</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">MPPT Inverter</span>
+                            <span class="font-bold text-amber-700">7.5–10 kVA (96V/120V)</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Battery (LiFePO₄)</span>
+                            <span class="font-bold">96V 200Ah ≈ 19 kWh</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Or Modular</span>
+                            <span class="font-bold">LiFePO₄ cabinet</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Solar Panels</span>
+                            <span class="font-bold">~10 kW array</span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="text-slate-500">Example Array</span>
+                            <span class="font-bold text-slate-700">440W × 24 panels</span>
+                        </div>
+                        <div class="bg-amber-50 rounded-xl p-3 text-xs text-amber-700 mt-2">
+                            💡 Villa: 1.5 ton AC, bigger pumps, heavy appliances
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Higher Load Configs -->
+            <div class="bg-amber-50 border border-amber-200 rounded-3xl p-8">
+                <h4 class="font-bold text-amber-900 mb-4">⚡ Example Higher-Load Configurations</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-amber-800">
+                    <div class="bg-white rounded-2xl p-4 border border-amber-100">
+                        <p class="font-bold text-slate-800">1 Ton AC / 1 HP Motor (~5 kW system)</p>
+                        <p class="text-slate-600 text-xs mt-1">5 kVA MPPT Hybrid Inverter · 48V 100Ah LiFePO4 · 450W × 8 panels</p>
+                    </div>
+                    <div class="bg-white rounded-2xl p-4 border border-amber-100">
+                        <p class="font-bold text-slate-800">1.5 Ton AC / 1.5 HP Motor (~7–10 kW system)</p>
+                        <p class="text-slate-600 text-xs mt-1">10 kVA MPPT Inverter · 96V 100Ah LiFePO4 · 450W × 12 panels</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════ SECTION 5: GUIDE ═══════════ -->
+        <section id="guide" class="space-y-6">
+            <div class="text-center max-w-2xl mx-auto">
+                <h2 class="text-3xl font-extrabold text-slate-900">Off-Grid Engineering Principles</h2>
+                <p class="text-slate-500 mt-2">A 6-step masterclass based on Indian off-grid standards and MicroPowerGrids methodology.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-sm leading-relaxed">
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                    <span class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">STEP 1</span>
+                    <h4 class="font-bold text-lg mt-3 mb-3 text-indigo-600">Assess Your Load</h4>
+                    <p class="text-slate-600">List every appliance: Watts × Hours/Day × Quantity = Daily Wh. Example for a small Indian home:</p>
+                    <div class="formula-block bg-slate-50 p-3 rounded-xl mt-3 text-xs text-slate-600 border border-slate-100">
+                        Refrigerator: 150W × 24h = 3,600 Wh<br>
+                        LED Lights: 10W × 4h × 10 = 400 Wh<br>
+                        TV: 100W × 3h = 300 Wh<br>
+                        Laptop: 50W × 5h = 250 Wh<br>
+                        Water Pump: 1000W × 0.5h = 500 Wh<br>
+                        <strong>Total: 5,050 Wh/day</strong>
+                    </div>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                    <span class="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-1 rounded-full">STEP 2</span>
+                    <h4 class="font-bold text-lg mt-3 mb-3 text-rose-600">Battery Autonomy</h4>
+                    <p class="text-slate-600">Autonomy = days without solar (rainy days). Indian standard: 2 days.</p>
+                    <code class="block bg-slate-50 p-3 rounded-xl mt-3 text-xs border border-slate-100">
+                        Ah = (Daily Wh × Days) ÷ (System V × DoD)
+                    </code>
+                    <p class="text-slate-500 mt-3 text-xs">⚠️ Never use 100% DoD on LiFePO4 — it dramatically reduces cycle life. Target <strong>80% DoD → 4,000+ cycles</strong>. 100% DoD → ~500 cycles.</p>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                    <span class="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-full">STEP 3</span>
+                    <h4 class="font-bold text-lg mt-3 mb-3 text-amber-600">Choose MPPT Inverter</h4>
+                    <p class="text-slate-600">Your MPPT inverter must handle:</p>
+                    <ul class="text-slate-600 mt-2 space-y-1 text-xs list-none">
+                        <li>→ Peak load in kW (sum of simultaneous appliances)</li>
+                        <li>→ Battery voltage (24V / 48V / 72V / 96V)</li>
+                        <li>→ Solar Voc and Isc within MPPT range</li>
+                    </ul>
+                    <p class="text-slate-500 text-xs mt-3">For a ~3 kW load, a <strong>3 kVA 48V hybrid MPPT</strong> inverter is standard. Size slightly above your peak load.</p>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                    <span class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">STEP 4</span>
+                    <h4 class="font-bold text-lg mt-3 mb-3 text-emerald-600">The 4.5-Hour Solar Rule</h4>
+                    <p class="text-slate-600">Solar panels don't produce peak power all day. India uses 4–5 Peak Sun Hours (PSH). Always account for system efficiency (~85%).</p>
+                    <code class="block bg-slate-50 p-3 rounded-xl mt-3 text-xs border border-slate-100">
+                        Array (W) = Daily Wh ÷ (PSH × Efficiency)
+                    </code>
+                    <p class="text-slate-500 text-xs mt-2">e.g. 5,050 Wh ÷ (4.5h × 0.85) = 1,320 W array</p>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                    <span class="text-[10px] font-black text-slate-600 bg-slate-100 px-2 py-1 rounded-full">STEP 5</span>
+                    <h4 class="font-bold text-lg mt-3 mb-3 text-slate-700">Series vs Parallel Wiring</h4>
+                    <p class="text-slate-600"><strong>Series (S):</strong> + to −. Increases Voltage.</p>
+                    <code class="block bg-slate-50 p-2 rounded-xl mt-1 mb-3 text-xs border border-slate-100">16S × 3.2V = 51.2V system</code>
+                    <p class="text-slate-600"><strong>Parallel (P):</strong> + to +. Increases Amp-hours.</p>
+                    <code class="block bg-slate-50 p-2 rounded-xl mt-1 text-xs border border-slate-100">2P × 100Ah = 200Ah capacity</code>
+                    <p class="text-slate-500 text-xs mt-3">Total Cells = S × P. Total Energy = (S × V) × (P × Ah)</p>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                    <span class="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-1 rounded-full">STEP 6</span>
+                    <h4 class="font-bold text-lg mt-3 mb-3 text-purple-600">C-Rating & Formulas</h4>
+                    <p class="text-slate-600">C-Rate measures how fast you charge/discharge relative to capacity.</p>
+                    <div class="formula-block bg-slate-50 p-3 rounded-xl mt-2 text-xs text-slate-600 border border-slate-100">
+                        C-Rate = Load(A) ÷ Capacity(Ah)<br>
+                        Wh ÷ V = Ah (conversion)<br>
+                        Ah ÷ Load(A) = Hours (discharge)<br>
+                        Ah × V ÷ Load(W) = Hours<br>
+                        <span class="text-slate-400">1C = full discharge in 1h</span><br>
+                        <span class="text-slate-400">0.5C = full discharge in 2h</span>
+                    </div>
+                    <p class="text-slate-500 text-xs mt-2">LiFePO4 can handle up to 1C continuous; keep charge rate ≤ 0.5C for longevity.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-slate-900 text-slate-500 py-10 text-center">
+        <p class="text-xs">© 2026 SolarSim Pro · LiFePO4 Engineering Tool based on MicroPowerGrids & Indian Off-Grid Standards</p>
+        <p class="text-[10px] mt-1 text-slate-600">All values are indicative. Consult a certified solar engineer for final system design.</p>
+    </footer>
+
+    <script>
+    // ═══════════════════════════════════════════════════
+    //  DEFAULT APPLIANCES (matching Image 3 example)
+    // ═══════════════════════════════════════════════════
+    const defaultAppliances = [
+        { name: 'Refrigerator',       watts: 150,  hours: 24, qty: 1 },
+        { name: 'LED Lights',         watts: 10,   hours: 4,  qty: 10 },
+        { name: 'Television',         watts: 100,  hours: 3,  qty: 1 },
+        { name: 'Laptop',             watts: 50,   hours: 5,  qty: 1 },
+        { name: 'Water Pump (1 HP)',  watts: 1000, hours: 0.5,qty: 1 },
+    ];
+
+    let applianceData = JSON.parse(JSON.stringify(defaultAppliances));
+
+    function renderAppliances() {
+        const container = document.getElementById('applianceTable');
+        container.innerHTML = '';
+        applianceData.forEach((app, i) => {
+            const wh = app.watts * app.hours * app.qty;
+            const row = document.createElement('div');
+            row.className = 'appliance-row px-6 py-3 grid grid-cols-12 gap-2 items-center';
+            row.innerHTML = `
+                <div class="col-span-4">
+                    <input type="text" value="${app.name}" placeholder="Appliance name"
+                        class="w-full text-sm font-medium bg-transparent border-b border-slate-200 focus:border-indigo-400 outline-none py-1"
+                        oninput="applianceData[${i}].name=this.value; updateTotals()">
+                </div>
+                <div class="col-span-2">
+                    <input type="number" value="${app.watts}" min="0"
+                        class="w-full text-center text-sm font-semibold bg-slate-50 border border-slate-200 rounded-lg p-1.5 focus:ring-1 focus:ring-indigo-400 outline-none"
+                        oninput="applianceData[${i}].watts=parseFloat(this.value)||0; updateTotals()">
+                </div>
+                <div class="col-span-2">
+                    <input type="number" value="${app.hours}" min="0" max="24" step="0.5"
+                        class="w-full text-center text-sm font-semibold bg-slate-50 border border-slate-200 rounded-lg p-1.5 focus:ring-1 focus:ring-indigo-400 outline-none"
+                        oninput="applianceData[${i}].hours=parseFloat(this.value)||0; updateTotals()">
+                </div>
+                <div class="col-span-2">
+                    <input type="number" value="${app.qty}" min="1"
+                        class="w-full text-center text-sm font-semibold bg-slate-50 border border-slate-200 rounded-lg p-1.5 focus:ring-1 focus:ring-indigo-400 outline-none"
+                        oninput="applianceData[${i}].qty=parseInt(this.value)||1; updateTotals()">
+                </div>
+                <div class="col-span-1 text-right font-black text-sm mono text-slate-800">${Math.round(wh).toLocaleString()}</div>
+                <div class="col-span-1 text-right">
+                    <button onclick="removeAppliance(${i})" class="text-slate-300 hover:text-rose-500 transition text-lg leading-none">×</button>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+        updateTotals();
+    }
+
+    function addAppliance() {
+        applianceData.push({ name: 'New Appliance', watts: 0, hours: 1, qty: 1 });
+        renderAppliances();
+    }
+
+    function removeAppliance(i) {
+        applianceData.splice(i, 1);
+        renderAppliances();
+    }
+
+    function updateTotals() {
+        const total = applianceData.reduce((s, a) => s + (a.watts * a.hours * a.qty), 0);
+        document.getElementById('totalDailyWh').textContent = Math.round(total).toLocaleString() + ' Wh';
+        document.getElementById('totalDailyKwh').textContent = (total / 1000).toFixed(2) + ' kWh';
+        // Re-render Wh column without rebuilding table to avoid focus loss
+        const whCells = document.querySelectorAll('#applianceTable .appliance-row');
+        applianceData.forEach((app, i) => {
+            const wh = app.watts * app.hours * app.qty;
+            const cell = whCells[i]?.querySelector('.col-span-1.text-right.font-black');
+            if (cell) cell.textContent = Math.round(wh).toLocaleString();
+        });
+    }
+
+    function syncLoadToCalculator() {
+        const total = applianceData.reduce((s, a) => s + (a.watts * a.hours * a.qty), 0);
+        document.getElementById('dailyWh').value = Math.round(total);
+        calculate();
+        document.getElementById('calculator').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  MAIN CALCULATOR
+    // ═══════════════════════════════════════════════════
+    function calculate() {
+        const v    = parseFloat(document.getElementById('cellVolts').value)   || 3.2;
+        const ah   = parseFloat(document.getElementById('cellAh').value)      || 100;
+        const s    = parseInt(document.getElementById('cellsSeries').value)   || 16;
+        const p    = parseInt(document.getElementById('cellsParallel').value) || 1;
+
+        const sysV  = v * s;
+        const sysAh = ah * p;
+        const sysWh = sysV * sysAh;
+
+        const dod     = (parseFloat(document.getElementById('dod').value)      || 80) / 100;
+        const dailyWh = parseFloat(document.getElementById('dailyWh').value)   || 5050;
+        const autonomy= parseFloat(document.getElementById('autonomy').value)  || 2;
+        const sunH    = parseFloat(document.getElementById('sunHours').value)  || 4.5;
+        const effPct  = (parseFloat(document.getElementById('sysEff').value)   || 85) / 100;
+
+        // Battery display
+        document.getElementById('outSysVolts').textContent    = sysV.toFixed(1) + 'V';
+        document.getElementById('outSysAh').textContent       = sysAh.toLocaleString() + ' Ah';
+        document.getElementById('outSysKwh').textContent      = (sysWh / 1000).toFixed(2) + ' kWh';
+        document.getElementById('outSysWh').textContent       = sysWh.toLocaleString() + ' Wh';
+        document.getElementById('outTotalCells').textContent  = (s * p).toLocaleString();
+        document.getElementById('outDodLabel').textContent    = Math.round(dod * 100);
+        document.getElementById('outUsableKwh').textContent   = ((sysWh * dod) / 1000).toFixed(2) + ' kWh';
+        document.getElementById('usableBar').style.width      = Math.min(100, dod * 100) + '%';
+
+        // Solar array sizing (with efficiency factor)
+        const solarReq   = dailyWh / (sunH * effPct);
+        const panelW     = 440;
+        const panels440  = Math.ceil(solarReq / panelW);
+        const panels550  = Math.ceil(solarReq / 550);
+        document.getElementById('reqSolar').textContent   = Math.round(solarReq).toLocaleString() + ' W';
+        document.getElementById('panelCount').textContent = `440W×${panels440} or 550W×${panels550}`;
+
+        // Battery requirement
+        const reqAh = (dailyWh * autonomy) / (sysV * dod);
+        const reqWh = reqAh * sysV;
+        document.getElementById('reqBattery').textContent    = Math.round(reqAh).toLocaleString() + ' Ah';
+        document.getElementById('reqBatteryKwh').textContent = (reqWh / 1000).toFixed(1) + ' kWh';
+
+        // MPPT inverter hint
+        const peakLoadKw = dailyWh / 5;  // rough estimate: daily/5 as avg peak
+        let mpptHint;
+        if (peakLoadKw < 3)       mpptHint = '3 kVA MPPT Hybrid (' + sysV.toFixed(0) + 'V)';
+        else if (peakLoadKw < 5)  mpptHint = '5 kVA MPPT Hybrid (' + sysV.toFixed(0) + 'V)';
+        else if (peakLoadKw < 8)  mpptHint = '7.5 kVA MPPT Hybrid (' + sysV.toFixed(0) + 'V)';
+        else                       mpptHint = '10 kVA MPPT Hybrid (' + sysV.toFixed(0) + 'V)';
+        document.getElementById('mpptHint').textContent = mpptHint;
+
+        // Update simulation data
+        simData.capacityWh = sysWh;
+        simData.sysV       = sysV;
+        simData.sysAh      = sysAh;
+        simData.dod        = dod;
+        updateSim();
+        calcDischarge();
+        calcCharge();
+
+        // Sync dod label
+        document.getElementById('disTimeDodLabel').textContent = `@ ${Math.round(dod * 100)}% DoD`;
+        document.getElementById('chargeTimeDodLabel').textContent = `From ${Math.round(dod * 100)}% DoD`;
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  DISCHARGE / CHARGE TIME CALCULATORS
+    // ═══════════════════════════════════════════════════
+    function fmtHM(h) {
+        if (!isFinite(h) || h > 9999) return '∞';
+        const hh = Math.floor(h);
+        const mm = Math.round((h - hh) * 60);
+        return `${hh}h ${mm.toString().padStart(2,'0')}m`;
+    }
+
+    function calcDischarge() {
+        const loadW  = parseFloat(document.getElementById('disLoadW').value) || 0;
+        const sysV   = simData.sysV   || 51.2;
+        const sysAh  = simData.sysAh  || 100;
+        const dod    = simData.dod    || 0.8;
+
+        if (loadW <= 0) { ['cRating','drawAmps','disTime100','disTimeDod'].forEach(id => document.getElementById(id).textContent = '—'); return; }
+
+        const loadA      = loadW / sysV;
+        const cRate      = loadA / sysAh;
+        const time100    = sysAh / loadA;          // hours at 100% DoD
+        const timeDod    = time100 * dod;           // hours at target DoD
+
+        document.getElementById('disLoadA').value  = loadA.toFixed(2);
+        document.getElementById('drawAmps').textContent   = loadA.toFixed(1) + ' A';
+        document.getElementById('cRating').textContent    = cRate.toFixed(3) + 'C';
+        document.getElementById('disTime100').textContent = fmtHM(time100);
+        document.getElementById('disTimeDod').textContent = fmtHM(timeDod);
+    }
+
+    function calcDischargeFromAmps() {
+        const loadA = parseFloat(document.getElementById('disLoadA').value) || 0;
+        const sysV  = simData.sysV || 51.2;
+        if (loadA > 0) {
+            document.getElementById('disLoadW').value = (loadA * sysV).toFixed(0);
+            calcDischarge();
+        }
+    }
+
+    function calcCharge() {
+        const solarW  = parseFloat(document.getElementById('chargeSolarW').value) || 0;
+        const effPct  = (parseFloat(document.getElementById('chargeEff').value) || 85) / 100;
+        const sysV    = simData.sysV  || 51.2;
+        const sysAh   = simData.sysAh || 100;
+        const dod     = simData.dod   || 0.8;
+
+        if (solarW <= 0) { ['chargeAmps','chargeCRate','chargeTime100','chargeTimeDod'].forEach(id => document.getElementById(id).textContent = '—'); return; }
+
+        const chargeA       = (solarW * effPct) / sysV;
+        const chargeCRate   = chargeA / sysAh;
+        const timeFullH     = sysAh / chargeA;
+        const timeFromDodH  = (sysAh * dod) / chargeA;  // recharge depleted portion
+
+        document.getElementById('chargeAmps').textContent     = chargeA.toFixed(1) + ' A';
+        document.getElementById('chargeCRate').textContent    = chargeCRate.toFixed(3) + 'C';
+        document.getElementById('chargeTime100').textContent  = fmtHM(timeFullH);
+        document.getElementById('chargeTimeDod').textContent  = fmtHM(timeFromDodH);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  LIVE SIMULATION
+    // ═══════════════════════════════════════════════════
+    let chart;
+    let simData = {
+        soc:          100,
+        capacityWh:   5120,
+        sysV:         51.2,
+        sysAh:        100,
+        dod:          0.8,
+        load:         800,
+        history:      Array(60).fill(100),
+        loadHistory:  Array(60).fill(0)
+    };
+
+    function resetSim() {
+        simData.soc = 100;
+        simData.history = Array(60).fill(100);
+        simData.loadHistory = Array(60).fill(simData.load);
+        updateSimUI();
+    }
+
+    function updateSim() {
+        const load = parseFloat(document.getElementById('simLoad').value);
+        document.getElementById('loadVal').textContent = load.toLocaleString() + 'W';
+        simData.load = load;
+        updateSimUI();
+    }
+
+    function updateSimUI() {
+        const soc   = simData.soc;
+        const load  = simData.load;
+        const energyLeft = (soc / 100) * simData.capacityWh;
+        const timeLeft   = load > 0 ? energyLeft / load : Infinity;
+        const cRate      = load > 0 ? (load / simData.sysV) / simData.sysAh : 0;
+
+        document.getElementById('simSoc').textContent       = soc.toFixed(1) + '%';
+        document.getElementById('simSocPct').textContent    = soc.toFixed(1) + '%';
+        document.getElementById('simTime').textContent      = load > 0 ? fmtHM(timeLeft) : '∞';
+        document.getElementById('simEnergyLeft').textContent= Math.round(energyLeft).toLocaleString() + ' Wh';
+        document.getElementById('simCRate').textContent     = cRate.toFixed(3) + 'C';
+
+        // SOC bar color
+        const bar = document.getElementById('simSocBar');
+        bar.style.width = soc + '%';
+        bar.className = 'soc-bar h-full rounded-full ' + (soc > 50 ? 'bg-emerald-500' : soc > 20 ? 'bg-amber-500' : 'bg-rose-500');
+    }
+
+    function initChart() {
+        const ctx = document.getElementById('ecgCanvas').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(60).fill(''),
+                datasets: [
+                    {
+                        label: 'SOC %',
+                        data: simData.history,
+                        borderColor: '#6366f1',
+                        borderWidth: 2.5,
+                        pointRadius: 0,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Load W',
+                        data: simData.loadHistory,
+                        borderColor: '#10b981',
+                        borderWidth: 1.5,
+                        backgroundColor: 'rgba(16,185,129,0.08)',
+                        fill: true,
+                        pointRadius: 0,
+                        tension: 0.2,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 0 },
+                scales: {
+                    y:  { beginAtZero: true, max: 105, position: 'left',  grid: { color: '#1e293b' }, ticks: { color: '#94a3b8', font: { family: 'Space Mono', size: 10 } } },
+                    y1: { beginAtZero: true, max: 10000, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#94a3b8', font: { family: 'Space Mono', size: 10 } } },
+                    x:  { display: false }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        setInterval(() => {
+            if (simData.soc > 0) {
+                const drainPerTick = (simData.load / 3600) * 10;
+                const socDrop = (drainPerTick / simData.capacityWh) * 100;
+                simData.soc = Math.max(0, simData.soc - socDrop);
+            }
+
+            simData.history.push(simData.soc);
+            simData.history.shift();
+            simData.loadHistory.push(simData.load);
+            simData.loadHistory.shift();
+
+            chart.data.datasets[0].data = simData.history;
+            chart.data.datasets[1].data = simData.loadHistory;
+            chart.update();
+
+            updateSimUI();
+        }, 100);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════════════
+    window.onload = () => {
+        renderAppliances();
+        calculate();
+        initChart();
+    };
+    </script>
+</body>
+</html>
